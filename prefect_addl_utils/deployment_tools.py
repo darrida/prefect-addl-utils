@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from pprint import pprint
 
 import click
 from prefect import Flow, deploy, get_client
@@ -13,12 +12,10 @@ from prefect.runner.storage import GitRepository
 from prefect.variables import Variable
 from pydantic.v1 import BaseModel
 from rich.console import Console
-from rich.table import Table, box
-from wcclibrary.util.secret import WCCSecret
+
+from . import deployment_rich as rich_deploy
 
 console = Console()
-
-wccsecrets = WCCSecret()
 
 
 def build_entrypoint_str(deploy__file__: str, *, flow_module: str = "flow.py", flow_func: str = "main") -> str:
@@ -85,26 +82,28 @@ async def deploy_process(
             deployment_ready = await flow_ready.to_deployment(**deployment.dict())
             prepped_deployments_l.append(deployment_ready)
 
-    # await deploy(*prepped_deployments_l, work_pool_name=work_pool_name, ignore_warnings=True)
+    await deploy(*prepped_deployments_l, work_pool_name=work_pool_name, ignore_warnings=True)
 
     with console.status("[bold green]Generating results...") as status:
         for count, deployment in enumerate(deployments, start=1):
             name = f"{flow.name}/{deployment.name}"
             updated_deployment = await __read_deployment(name)
+            rich_deploy.show_deployment_results(name, updated_deployment, current_deployment)
 
-            deploy_results = __DeploymentResults(previous=current_deployment, updated=updated_deployment)
-            deploy_results.show(count, name)
-            print(updated_deployment.entrypoint)
 
-    table = Table(show_header=True, header_style="bold magenta", box=box.HEAVY_HEAD)
-    table.add_column("Config", style="green", width=12)
-    table.add_column("Values")
-    table.add_column("Previous Values", style="yellow")
-    table.add_row("Parameters", "{'dsn': 'PROD'}", "{'dsn': 'PPRD'}")
-    table.add_row("Schedules", "cron='0 9,17,20 * * *' timezone='America/Chicago' day_or=True")
-    table.add_row("Tags", '["priority-low", "prod-deployment", "entsys-maintenance"]')
-    table.add_row("Entrypoint", "flows/idm-employee-start/src/flow.py:main")
-    console.print(table)
+
+            # deploy_results = __DeploymentResults(previous=current_deployment, updated=updated_deployment)
+            # deploy_results.show(count, name)
+
+    # table = Table(show_header=True, header_style="bold magenta", box=box.HEAVY_HEAD)
+    # table.add_column("Config", style="green", width=12)
+    # table.add_column("Values")
+    # table.add_column("Previous Values", style="yellow")
+    # table.add_row("Parameters", "{'dsn': 'PROD'}", "{'dsn': 'PPRD'}")
+    # table.add_row("Schedules", "cron='0 9,17,20 * * *' timezone='America/Chicago' day_or=True")
+    # table.add_row("Tags", '["priority-low", "prod-deployment", "entsys-maintenance"]')
+    # table.add_row("Entrypoint", "flows/idm-employee-start/src/flow.py:main")
+    # console.print(table)
 
 
 async def __read_deployment(name: str) -> DeploymentResponse:
@@ -116,48 +115,48 @@ async def __read_deployment(name: str) -> DeploymentResponse:
         return None
 
 
-class __DeploymentResults(BaseModel):
-    previous: DeploymentResponse
-    updated: DeploymentResponse
+# class __DeploymentResults(BaseModel):
+#     previous: DeploymentResponse
+#     updated: DeploymentResponse
 
-    def show(self, count: int, name: str):
-        click.echo(click.style("----------------------------------------------------", fg="blue"))
-        click.echo(f'{click.style(f"DEPLOYMENT {count} RESULTS", fg="blue")}: {name}')
-        click.echo(click.style("----------------------------------------------------", fg="blue"))
-        self.__print_parameters()
-        self.__print_schedules()
-        self.__print_tags()
-        self.__print_entrypoint()
+#     def show(self, count: int, name: str):
+#         click.echo(click.style("----------------------------------------------------", fg="blue"))
+#         click.echo(f'{click.style(f"DEPLOYMENT {count} RESULTS", fg="blue")}: {name}')
+#         click.echo(click.style("----------------------------------------------------", fg="blue"))
+#         self.__print_parameters()
+#         self.__print_schedules()
+#         self.__print_tags()
+#         self.__print_entrypoint()
 
-    def __print_parameters(self):
-        parameter_changes = set(self.previous.parameters.items()) - set(self.updated.parameters.items())
-        if parameter_changes:
-            click.echo(f'{click.style("- Parameters CHANGED:", fg="yellow")} {dict(parameter_changes)}')
-            print(f"  - All Before: {self.previous.parameters}")
-            print(f"  - All After: {self.updated.parameters}")
-        else:
-            click.echo(f"{click.style('- Parameters:', fg='green')} {self.updated.parameters}")
+#     def __print_parameters(self):
+#         parameter_changes = set(self.previous.parameters.items()) - set(self.updated.parameters.items())
+#         if parameter_changes:
+#             click.echo(f'{click.style("- Parameters CHANGED:", fg="yellow")} {dict(parameter_changes)}')
+#             print(f"  - All Before: {self.previous.parameters}")
+#             print(f"  - All After: {self.updated.parameters}")
+#         else:
+#             click.echo(f"{click.style('- Parameters:', fg='green')} {self.updated.parameters}")
 
-    def __print_schedules(self):
-        if str(self.previous.schedule) != str(self.updated.schedule):
-            click.echo(click.style("- Schedule CHANGED:", fg="yellow"))
-            print(f"  - Before: {self.previous.schedule}")
-            print(f"  - After: {self.updated.schedule}")
-        else:
-            click.echo(f"{click.style('- Schedule:', fg='green')} {self.updated.schedule}")
+#     def __print_schedules(self):
+#         if str(self.previous.schedule) != str(self.updated.schedule):
+#             click.echo(click.style("- Schedule CHANGED:", fg="yellow"))
+#             print(f"  - Before: {self.previous.schedule}")
+#             print(f"  - After: {self.updated.schedule}")
+#         else:
+#             click.echo(f"{click.style('- Schedule:', fg='green')} {self.updated.schedule}")
 
-    def __print_tags(self):
-        if set(self.previous.tags).difference(set(self.updated.tags)):
-            click.echo(click.style("- Tags CHANGED:", fg="yellow"))
-            print(f"  - Before: {self.previous.tags}")
-            print(f"  - After: {self.updated.tags}")
-        else:
-            click.echo(f"{click.style('- Tags:', fg='green')} {self.updated.tags}")
+#     def __print_tags(self):
+#         if set(self.previous.tags).difference(set(self.updated.tags)):
+#             click.echo(click.style("- Tags CHANGED:", fg="yellow"))
+#             print(f"  - Before: {self.previous.tags}")
+#             print(f"  - After: {self.updated.tags}")
+#         else:
+#             click.echo(f"{click.style('- Tags:', fg='green')} {self.updated.tags}")
 
-    def __print_entrypoint(self):
-        if self.previous.entrypoint != self.updated.entrypoint:
-            click.echo(click.style("- Entrypoint CHANGED:", fg="yellow"))
-            print(f"  - Before: {self.previous.entrypoint}")
-            print(f"  - After: {self.updated.entrypoint}")
-        else:
-            click.echo(f"{click.style('- Entrypoint:', fg='green')} {click.style(self.updated.entrypoint, fg="blue")}")
+#     def __print_entrypoint(self):
+#         if self.previous.entrypoint != self.updated.entrypoint:
+#             click.echo(click.style("- Entrypoint CHANGED:", fg="yellow"))
+#             print(f"  - Before: {self.previous.entrypoint}")
+#             print(f"  - After: {self.updated.entrypoint}")
+#         else:
+#             click.echo(f"{click.style('- Entrypoint:', fg='green')} {click.style(self.updated.entrypoint, fg="blue")}")

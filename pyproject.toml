@@ -1,0 +1,46 @@
+[project]
+name = "prefect_addl_utils"
+version = "2024.6.2"
+authors = [
+  {name="darrida", email="darrida.py@gmail.com"}
+]
+description = "Utilities that add functionality to Prefect."
+readme = "README.md"
+dependencies = [
+    'prefect >= 2.18',
+    'rich >= 11.0, < 14.0',
+    'python_version < 3.11',
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+tests = [
+  'pytest',
+  'pytest-asyncio',
+]
+
+[project.urls]
+Homepage = "https://github.com/darrida/prefect-addl-utils"
+Issues = "https://github.com/darrida/prefect-addl-utils/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 120
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+extend-select = ["S", "I"]  # bandit (S), isort (I)
+
+[tool.ruff.lint.isort]
+extra-standard-library = []
+known-first-party = []
+known-third-party = []
+# relative-imports-order = "closest-to-furthest"
+required-imports = ["from __future__ import annotations"]
