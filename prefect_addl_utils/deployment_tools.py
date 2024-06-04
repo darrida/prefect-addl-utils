@@ -28,7 +28,7 @@ def build_entrypoint_str(deploy__file__: str, *, flow_module: str = "flow.py", f
 class DeploymentConfig(BaseModel):
     name: str = None
     version: str
-    work_queue_name: str
+    work_queue_name: str = "default"
     job_variables: dict | None = None
     parameters: dict | None = None
     description: str | None = None
@@ -40,9 +40,7 @@ git_storage = GitRepository(
     name=Variable.get("gitlab_flows_repo_name").value,
     url=Variable.get("gitlab_flows_storage").value,
     branch=Variable.get("gitlab_flows_branch").value,
-    credentials={
-        "access_token": Secret.load("gitlab-flows-token"),
-    },
+    credentials={"access_token": Secret.load("gitlab-flows-token")},
 )
 
 
