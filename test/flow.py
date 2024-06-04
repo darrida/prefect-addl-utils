@@ -4,7 +4,7 @@ from httpx import get
 from prefect import flow, get_run_logger
 
 
-@flow
+@flow(name="test-flow")
 def main():
     logger = get_run_logger()
     logger.info("Flow ran successfully!")

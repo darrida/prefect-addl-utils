@@ -180,18 +180,20 @@ class Container(BaseModel):
 def show_deployment_results(name: str, new: DeploymentResponse, old: DeploymentResponse = None):
     tree = Tree(f":rocket: [bold bright_cyan]{name}")
 
-    entrypoint = Entrypoint.build(new.entrypoint, old.entrypoint)
+    print(new)
+
+    entrypoint = Entrypoint.build(new.entrypoint, old.entrypoint or None)
     tree.add(f"[bold blue]entrypoint:[/bold blue] {entrypoint}")
 
-    tags = TagsRow.build(new.tags, old.tags)
+    tags = TagsRow.build(new.tags, old.tags or None)
     tree.add(f"[bold blue]tags:[/bold blue] {" ".join(tags)}")
 
-    schedules_l = ScheduleRows.build(new.schedules, old.schedules)
+    schedules_l = ScheduleRows.build(new.schedules, old.schedules or None)
     schedule_tree = tree.add("[bold blue]schedules:")
     for s in schedules_l:
         schedule_tree.add(s)
 
-    parameters_table = ParameterRows.build(new.parameters, old.parameters)
+    parameters_table = ParameterRows.build(new.parameters, old.parameters or None)
     tree.add(parameters_table)
 
     console.print(tree)

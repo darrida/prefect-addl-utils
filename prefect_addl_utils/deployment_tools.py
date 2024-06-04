@@ -36,12 +36,12 @@ class DeploymentConfig(BaseModel):
     tags: list | None = None
 
 
-git_storage = GitRepository(
-    name=Variable.get("gitlab_flows_repo_name").value,
-    url=Variable.get("gitlab_flows_storage").value,
-    branch=Variable.get("gitlab_flows_branch").value,
-    credentials={"access_token": Secret.load("gitlab-flows-token")},
-)
+# git_storage = GitRepository(
+#     name=Variable.get("gitlab_flows_repo_name").value,
+#     url=Variable.get("gitlab_flows_storage").value,
+#     branch=Variable.get("gitlab_flows_branch").value,
+#     credentials={"access_token": Secret.load("gitlab-flows-token")},
+# )
 
 
 async def deploy_process(
@@ -71,12 +71,13 @@ async def deploy_process(
         for count, deployment in enumerate(deployments, start=1):
             deployment_name = f"{flow.name}/{deployment.name}"
             current_deployment = await __read_deployment(deployment_name)
-            if update_parameters != "yes":
-                deployment.parameters = current_deployment.parameters
-            if update_schedules != "yes":
-                deployment.schedule = current_deployment.schedule
-            if update_tags != "yes":
-                deployment.tags = current_deployment.tags
+            if current_deployment:
+                if update_parameters != "yes":
+                    deployment.parameters = current_deployment.parameters
+                if update_schedules != "yes":
+                    deployment.schedule = current_deployment.schedule
+                if update_tags != "yes":
+                    deployment.tags = current_deployment.tags
             deployment_ready = await flow_ready.to_deployment(**deployment.dict())
             prepped_deployments_l.append(deployment_ready)
 
@@ -85,7 +86,9 @@ async def deploy_process(
     with console.status("[bold green]Generating results...") as status:
         for count, deployment in enumerate(deployments, start=1):
             name = f"{flow.name}/{deployment.name}"
+            print(name)
             updated_deployment = await __read_deployment(name)
+            print(updated_deployment)
             rich_deploy.show_deployment_results(name, updated_deployment, current_deployment)
 
 

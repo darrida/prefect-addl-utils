@@ -14,11 +14,11 @@ work_pool = "test-pool"
 
 deployment = DeploymentConfig(
     name="test-deployment",
-    verion="1.0.0",
-    work_queue_name=None,
+    version="1.0.0",
+    work_queue_name="default",
     job_variables={},
     parameters={},
-    description=open(Path(__file__).parent / "_description.md"),
+    description=open(Path(__file__).parent / "_description.md").read(),
     schedule=None,
     tags=["tag1", "tag2"]
 )
