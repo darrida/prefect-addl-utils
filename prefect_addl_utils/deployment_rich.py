@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from typing import Literal
 
 from cron_descriptor import get_description
@@ -57,8 +57,10 @@ class ScheduleRows(BaseModel):
 
     @staticmethod
     def build(new_schedules: list, old_schedules: list = None):
-        if not old_schedules:
-            old_schedules = []
+        ScheduleTuple = namedtuple('ScheduleTuple', 'active schedule')
+
+        old_schedules = [] if old_schedules is None else [ScheduleTuple(x.active, x.schedule) for x in old_schedules]
+        new_schedules = [ScheduleTuple(x.active, x.schedule) for x in new_schedules]
 
         added_l, removed_l, unchanged_l = [], [], []
         for s in new_schedules:
@@ -73,9 +75,9 @@ class ScheduleRows(BaseModel):
                 unchanged_l.append(s)
         
         schedules_l = []
-        schedules_l += [ScheduleRows(active=True, schedule=x, mode="added").__resolve() for x in added_l]
-        schedules_l += [ScheduleRows(active=True, schedule=x, mode="removed").__resolve() for x in removed_l]
-        schedules_l += [ScheduleRows(active=True, schedule=x, mode=None).__resolve() for x in unchanged_l]
+        schedules_l += [ScheduleRows(active=x.active, schedule=x.schedule, mode="added").__resolve() for x in added_l]
+        schedules_l += [ScheduleRows(active=x.active, schedule=x.schedule, mode="removed").__resolve() for x in removed_l]
+        schedules_l += [ScheduleRows(active=x.active, schedule=x.schedule, mode=None).__resolve() for x in unchanged_l]
         return schedules_l
 
     def __resolve(self):
@@ -180,7 +182,8 @@ class Container(BaseModel):
 def show_deployment_results(name: str, new: DeploymentResponse, old: DeploymentResponse = None):
     tree = Tree(f":rocket: [bold bright_cyan]{name}")
 
-    print(new)
+    if not old:
+        old = DeploymentResponse()
 
     entrypoint = Entrypoint.build(new.entrypoint, old.entrypoint or None)
     tree.add(f"[bold blue]entrypoint:[/bold blue] {entrypoint}")

@@ -3,12 +3,13 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from flow import main
+from flow import Parameters, main
 from prefect.blocks.system import Secret
+from prefect.client.schemas.schedules import CronSchedule
 from prefect.runner.storage import GitRepository
 from prefect.variables import Variable
 
-from prefect_addl_utils import DeploymentConfig, build_entrypoint_str, deploy_process
+from prefect_addl_utils import DeploymentConfig, build_entrypoint_str, deploy_process, schedule
 
 work_pool = "test-pool"
 
@@ -17,10 +18,11 @@ deployment = DeploymentConfig(
     version="1.0.0",
     work_queue_name="default",
     job_variables={},
-    parameters={},
+    schedules=[schedule(CronSchedule(cron="0 2 * * *", timezone="America/Chicago"), active=True)],
+    tags=["tag1", "tag2"],
+    ####################################
+    parameters=Parameters().dict(),
     description=open(Path(__file__).parent / "_description.md").read(),
-    schedule=None,
-    tags=["tag1", "tag2"]
 )
 
 git_storage = GitRepository(

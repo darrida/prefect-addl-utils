@@ -4,18 +4,21 @@ from pathlib import Path
 
 import click
 from prefect import Flow, deploy, get_client
-from prefect.blocks.system import Secret
+from prefect.client.schemas.objects import DeploymentSchedule, MinimalDeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, RRuleSchedule
 from prefect.exceptions import ObjectNotFound
 from prefect.runner.storage import GitRepository
-from prefect.variables import Variable
-from pydantic.v1 import BaseModel
+from pydantic.v1 import BaseModel, validator
 from rich.console import Console
 
 from . import deployment_rich as rich_deploy
 
 console = Console()
+
+
+def schedule(schedule: CronSchedule | IntervalSchedule | RRuleSchedule, active: bool, **kwargs):
+    return DeploymentSchedule(schedule=schedule, active=active, **kwargs)
 
 
 def build_entrypoint_str(deploy__file__: str, *, flow_module: str = "flow.py", flow_func: str = "main") -> str:
@@ -32,8 +35,16 @@ class DeploymentConfig(BaseModel):
     job_variables: dict | None = None
     parameters: dict | None = None
     description: str | None = None
-    schedule: CronSchedule | IntervalSchedule | RRuleSchedule | None = None
+    schedules: list[DeploymentSchedule] | DeploymentResponse | CronSchedule | IntervalSchedule | RRuleSchedule | None = None
     tags: list | None = None
+
+    @validator("schedules")
+    def schedule_list_check(cls, v):
+        if isinstance(v, CronSchedule) or isinstance(v, IntervalSchedule) or isinstance(v, RRuleSchedule):
+            return [DeploymentResponse(schedule=v)]
+        if isinstance(v, DeploymentResponse):
+            return [v]
+        return v
 
 
 # git_storage = GitRepository(
@@ -60,11 +71,11 @@ async def deploy_process(
     update_tags = input("Overwrite cloud tags with local tags? (yes/no | default: no): ")
 
     if update_parameters == "yes":
-        click.echo(click.style("Parameters: Prepping to CHANGE"), fb="yellow")
+        click.echo(click.style("Parameters: Prepping to CHANGE", fg="yellow"))
     if update_schedules == "yes":
-        click.echo(click.style("Schedules: Prepping to CHANGE"), fb="yellow")
+        click.echo(click.style("Schedules: Prepping to CHANGE", fg="yellow"))
     if update_tags == "yes":
-        click.echo(click.style("Tags: Prepping to CHANGE"), fb="yellow")
+        click.echo(click.style("Tags: Prepping to CHANGE", fg="yellow"))
 
     with console.status("[bold green]Prepping deployment(s)...") as status:
         prepped_deployments_l = []
@@ -75,36 +86,23 @@ async def deploy_process(
                 if update_parameters != "yes":
                     deployment.parameters = current_deployment.parameters
                 if update_schedules != "yes":
-                    deployment.schedule = current_deployment.schedule
+                    deployment.schedules = current_deployment.schedules
+                    print(deployment.schedules)
                 if update_tags != "yes":
                     deployment.tags = current_deployment.tags
+
+            deployment.schedules = [MinimalDeploymentSchedule(schedule=x.schedule, active=x.active) for x in deployment.schedules]
             deployment_ready = await flow_ready.to_deployment(**deployment.dict())
             prepped_deployments_l.append(deployment_ready)
 
     await deploy(*prepped_deployments_l, work_pool_name=work_pool_name, ignore_warnings=True)
 
-    with console.status("[bold green]Generating results...") as status:
-        for count, deployment in enumerate(deployments, start=1):
-            name = f"{flow.name}/{deployment.name}"
-            print(name)
+    for count, deployment in enumerate(deployments, start=1):
+        name = f"{flow.name}/{deployment.name}"
+        print(name)
+        with console.status("[bold green]Generating results..."):
             updated_deployment = await __read_deployment(name)
-            print(updated_deployment)
-            rich_deploy.show_deployment_results(name, updated_deployment, current_deployment)
-
-
-
-            # deploy_results = __DeploymentResults(previous=current_deployment, updated=updated_deployment)
-            # deploy_results.show(count, name)
-
-    # table = Table(show_header=True, header_style="bold magenta", box=box.HEAVY_HEAD)
-    # table.add_column("Config", style="green", width=12)
-    # table.add_column("Values")
-    # table.add_column("Previous Values", style="yellow")
-    # table.add_row("Parameters", "{'dsn': 'PROD'}", "{'dsn': 'PPRD'}")
-    # table.add_row("Schedules", "cron='0 9,17,20 * * *' timezone='America/Chicago' day_or=True")
-    # table.add_row("Tags", '["priority-low", "prod-deployment", "entsys-maintenance"]')
-    # table.add_row("Entrypoint", "flows/idm-employee-start/src/flow.py:main")
-    # console.print(table)
+        rich_deploy.show_deployment_results(name, updated_deployment, current_deployment)
 
 
 async def __read_deployment(name: str) -> DeploymentResponse:
@@ -114,50 +112,3 @@ async def __read_deployment(name: str) -> DeploymentResponse:
             return deployment_obj
     except ObjectNotFound:
         return None
-
-
-# class __DeploymentResults(BaseModel):
-#     previous: DeploymentResponse
-#     updated: DeploymentResponse
-
-#     def show(self, count: int, name: str):
-#         click.echo(click.style("----------------------------------------------------", fg="blue"))
-#         click.echo(f'{click.style(f"DEPLOYMENT {count} RESULTS", fg="blue")}: {name}')
-#         click.echo(click.style("----------------------------------------------------", fg="blue"))
-#         self.__print_parameters()
-#         self.__print_schedules()
-#         self.__print_tags()
-#         self.__print_entrypoint()
-
-#     def __print_parameters(self):
-#         parameter_changes = set(self.previous.parameters.items()) - set(self.updated.parameters.items())
-#         if parameter_changes:
-#             click.echo(f'{click.style("- Parameters CHANGED:", fg="yellow")} {dict(parameter_changes)}')
-#             print(f"  - All Before: {self.previous.parameters}")
-#             print(f"  - All After: {self.updated.parameters}")
-#         else:
-#             click.echo(f"{click.style('- Parameters:', fg='green')} {self.updated.parameters}")
-
-#     def __print_schedules(self):
-#         if str(self.previous.schedule) != str(self.updated.schedule):
-#             click.echo(click.style("- Schedule CHANGED:", fg="yellow"))
-#             print(f"  - Before: {self.previous.schedule}")
-#             print(f"  - After: {self.updated.schedule}")
-#         else:
-#             click.echo(f"{click.style('- Schedule:', fg='green')} {self.updated.schedule}")
-
-#     def __print_tags(self):
-#         if set(self.previous.tags).difference(set(self.updated.tags)):
-#             click.echo(click.style("- Tags CHANGED:", fg="yellow"))
-#             print(f"  - Before: {self.previous.tags}")
-#             print(f"  - After: {self.updated.tags}")
-#         else:
-#             click.echo(f"{click.style('- Tags:', fg='green')} {self.updated.tags}")
-
-#     def __print_entrypoint(self):
-#         if self.previous.entrypoint != self.updated.entrypoint:
-#             click.echo(click.style("- Entrypoint CHANGED:", fg="yellow"))
-#             print(f"  - Before: {self.previous.entrypoint}")
-#             print(f"  - After: {self.updated.entrypoint}")
-#         else:
-#             click.echo(f"{click.style('- Entrypoint:', fg='green')} {click.style(self.updated.entrypoint, fg="blue")}")
