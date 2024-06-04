@@ -4,22 +4,24 @@ import asyncio
 from pathlib import Path
 
 from flow import Parameters, main
-from prefect.blocks.system import Secret
+from prefect.client.schemas.objects import MinimalDeploymentSchedule as sch
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.runner.storage import GitRepository
 from prefect.variables import Variable
 
-from prefect_addl_utils import DeploymentConfig, build_entrypoint_str, deploy_process, schedule
+import prefect_addl_utils as utils
 
-work_pool = "test-pool"
+# from prefect_addl_utils import DeploymentConfig, build_entrypoint_str, deploy_process
 
-deployment = DeploymentConfig(
+WORK_POOL_NAME = "test-pool"
+
+deployment = utils.DeploymentConfig(
     name="test-deployment",
     version="1.0.0",
     work_queue_name="default",
     job_variables={},
-    schedules=[schedule(CronSchedule(cron="0 2 * * *", timezone="America/Chicago"), active=True)],
-    tags=["tag1", "tag2"],
+    schedules=[sch(schedule=CronSchedule(cron="0 2 1 * *", timezone="America/Chicago"), active=True)],
+    tags=["tag1", "tag2", "tag3"],
     ####################################
     parameters=Parameters().dict(),
     description=open(Path(__file__).parent / "_description.md").read(),
@@ -34,11 +36,11 @@ git_storage = GitRepository(
 
 if __name__ == "__main__":
     asyncio.run(
-        deploy_process(
+        utils.execute_deploy_process(
             flow=main,
             source=git_storage,
-            entrypoint=build_entrypoint_str(__file__),
+            entrypoint=utils.build_entrypoint_str(__file__),
             deployments=deployment,
-            work_pool_name=work_pool
+            work_pool_name=WORK_POOL_NAME
         )
     )

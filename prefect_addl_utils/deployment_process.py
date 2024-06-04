@@ -1,24 +1,37 @@
 from __future__ import annotations
 
+import sys
+import time
 from pathlib import Path
 
-import click
 from prefect import Flow, deploy, get_client
 from prefect.client.schemas.objects import DeploymentSchedule, MinimalDeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
-from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, RRuleSchedule
 from prefect.exceptions import ObjectNotFound
 from prefect.runner.storage import GitRepository
-from pydantic.v1 import BaseModel, validator
+from pydantic.v1 import BaseModel
 from rich.console import Console
+from rich.status import Status
 
 from . import deployment_rich as rich_deploy
 
 console = Console()
 
 
-def schedule(schedule: CronSchedule | IntervalSchedule | RRuleSchedule, active: bool, **kwargs):
-    return DeploymentSchedule(schedule=schedule, active=active, **kwargs)
+def help_text():
+    print("""
+`_deloy.py` executes deployment process
+
+By default parameters, schedules, or tags are not updated.
+
+To...
+- update parameters, pass `--parameters`
+- update schedules, pass `--schedules`
+- update tags, pass `--tags`
+- update all config, pass `--update-all`
+"""
+    )
+    exit()
 
 
 def build_entrypoint_str(deploy__file__: str, *, flow_module: str = "flow.py", flow_func: str = "main") -> str:
@@ -35,69 +48,40 @@ class DeploymentConfig(BaseModel):
     job_variables: dict | None = None
     parameters: dict | None = None
     description: str | None = None
-    schedules: list[DeploymentSchedule] | DeploymentResponse | CronSchedule | IntervalSchedule | RRuleSchedule | None = None
+    schedules: list[MinimalDeploymentSchedule] | list[DeploymentSchedule] | None = None
     tags: list | None = None
 
-    @validator("schedules")
-    def schedule_list_check(cls, v):
-        if isinstance(v, CronSchedule) or isinstance(v, IntervalSchedule) or isinstance(v, RRuleSchedule):
-            return [DeploymentResponse(schedule=v)]
-        if isinstance(v, DeploymentResponse):
-            return [v]
-        return v
 
-
-# git_storage = GitRepository(
-#     name=Variable.get("gitlab_flows_repo_name").value,
-#     url=Variable.get("gitlab_flows_storage").value,
-#     branch=Variable.get("gitlab_flows_branch").value,
-#     credentials={"access_token": Secret.load("gitlab-flows-token")},
-# )
-
-
-async def deploy_process(
+async def execute_deploy_process(
     flow: Flow,
     source: GitRepository,
     entrypoint: str,
     deployments: list[DeploymentConfig] | DeploymentConfig,
     work_pool_name: str,
 ):
+    cli_flags = sys.argv[1:]
+
+    if "--help" in cli_flags:
+        help_text()
+
     if not isinstance(deployments, list):
         deployments = [deployments]
     flow_ready = await flow.from_source(source=source, entrypoint=entrypoint)
 
-    update_parameters = input("Overwrite cloud options: parameters with local parameters? (yes/no | default: no): ")
-    update_schedules = input("Overwrite cloud schedule with local schedule? (yes/no | default: no): ")
-    update_tags = input("Overwrite cloud tags with local tags? (yes/no | default: no): ")
-
-    if update_parameters == "yes":
-        click.echo(click.style("Parameters: Prepping to CHANGE", fg="yellow"))
-    if update_schedules == "yes":
-        click.echo(click.style("Schedules: Prepping to CHANGE", fg="yellow"))
-    if update_tags == "yes":
-        click.echo(click.style("Tags: Prepping to CHANGE", fg="yellow"))
-
-    with console.status("[bold green]Prepping deployment(s)...") as status:
+    with console.status("[bold green]Prepping deployment(s)...\n") as spinner_status:
         prepped_deployments_l = []
-        for count, deployment in enumerate(deployments, start=1):
+        for deployment in deployments:
             deployment_name = f"{flow.name}/{deployment.name}"
             current_deployment = await __read_deployment(deployment_name)
             if current_deployment:
-                if update_parameters != "yes":
-                    deployment.parameters = current_deployment.parameters
-                if update_schedules != "yes":
-                    deployment.schedules = current_deployment.schedules
-                    print(deployment.schedules)
-                if update_tags != "yes":
-                    deployment.tags = current_deployment.tags
-
+                deployment = __deployment_updates(deployment_name, deployment, current_deployment, cli_flags, spinner_status)
             deployment.schedules = [MinimalDeploymentSchedule(schedule=x.schedule, active=x.active) for x in deployment.schedules]
             deployment_ready = await flow_ready.to_deployment(**deployment.dict())
             prepped_deployments_l.append(deployment_ready)
 
     await deploy(*prepped_deployments_l, work_pool_name=work_pool_name, ignore_warnings=True)
 
-    for count, deployment in enumerate(deployments, start=1):
+    for deployment in deployments:
         name = f"{flow.name}/{deployment.name}"
         print(name)
         with console.status("[bold green]Generating results..."):
@@ -112,3 +96,20 @@ async def __read_deployment(name: str) -> DeploymentResponse:
             return deployment_obj
     except ObjectNotFound:
         return None
+
+
+def __deployment_updates(name: str, deployment: DeploymentResponse, previous_deployment: DeploymentResponse, cli_flags: list, spinner_status: Status):
+    update_all = True if "--update-all" in cli_flags else False
+    if "--parameters" in cli_flags or update_all:
+        spinner_status.update(f"{name} [blue]-> [yellow]`parameters`: prepping to update")
+        time.sleep(2)
+        deployment.parameters = previous_deployment.parameters
+    if "--schedules" in cli_flags or "--schedule" in cli_flags or update_all:
+        spinner_status.update(f"{name} [blue]-> [yellow]`schedules`: prepping to update")
+        deployment.schedules = previous_deployment.schedules
+        time.sleep(2)
+    if "--tags" in cli_flags or update_all:
+        spinner_status.update(f"{name} [blue]-> [yellow]`tags`: prepping to update")
+        deployment.tags = previous_deployment.tags
+        time.sleep(2)
+    return deployment
