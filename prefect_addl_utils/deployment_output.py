@@ -24,7 +24,10 @@ CLOSE_PARENTHESIS = "[bold bright_cyan])[/bold bright_cyan]"
 
 class Entrypoint(BaseModel):
     @staticmethod
-    def build(new: str, old: str = None) -> str:
+    def build(new: DeploymentResponse, old: DeploymentResponse = None) -> str:
+        new = new.entrypoint
+        old = None if old is None else old.entrypoint
+
         if old == new or old in (None, ""):
             return f"[bold orange4]`{new}`[/bold orange4]"
         else:
@@ -33,7 +36,10 @@ class Entrypoint(BaseModel):
 
 class TagsRow(BaseModel):
     @staticmethod
-    def build(new_tags: list, old_tags: list = None) -> list:
+    def build(new: DeploymentResponse, old: DeploymentResponse = None) -> list:
+        new_tags = new.tags
+        old_tags = None if old is None else old.tags
+
         if not old_tags:
             old_tags = []
 
@@ -56,7 +62,10 @@ class ScheduleRows(BaseModel):
     mode: Literal["added", "removed", None] = None
 
     @staticmethod
-    def build(new_schedules: list, old_schedules: list = None):
+    def build(new: DeploymentResponse, old: DeploymentResponse = None):
+        new_schedules = new.schedules
+        old_schedules = None if old is None else old.schedules
+
         ScheduleTuple = namedtuple('ScheduleTuple', 'active schedule')
 
         old_schedules = [] if old_schedules is None else [ScheduleTuple(x.active, x.schedule) for x in old_schedules]
@@ -94,7 +103,10 @@ class ScheduleRows(BaseModel):
 
 class ParameterRows(BaseModel):
     @staticmethod
-    def build(new: dict, old: dict = None):
+    def build(new: DeploymentResponse, old: DeploymentResponse = None):
+        new = new.parameters
+        old = None if old is None else old.parameters
+
         old = OrderedDict() if old is None else OrderedDict(sorted(old.items()))
         new = OrderedDict(sorted(new.items()))
 
@@ -182,21 +194,18 @@ class Container(BaseModel):
 def show_deployment_results(name: str, new: DeploymentResponse, old: DeploymentResponse = None):
     tree = Tree(f":rocket: [bold bright_cyan]{name}")
 
-    if not old:
-        old = DeploymentResponse()
-
-    entrypoint = Entrypoint.build(new.entrypoint, old.entrypoint or None)
+    entrypoint = Entrypoint.build(new, old or None)
     tree.add(f"[bold blue]entrypoint:[/bold blue] {entrypoint}")
 
-    tags = TagsRow.build(new.tags, old.tags or None)
+    tags = TagsRow.build(new, old or None)
     tree.add(f"[bold blue]tags:[/bold blue] {" ".join(tags)}")
 
-    schedules_l = ScheduleRows.build(new.schedules, old.schedules or None)
+    schedules_l = ScheduleRows.build(new, old or None)
     schedule_tree = tree.add("[bold blue]schedules:")
     for s in schedules_l:
         schedule_tree.add(s)
 
-    parameters_table = ParameterRows.build(new.parameters, old.parameters or None)
+    parameters_table = ParameterRows.build(new, old or None)
     tree.add(parameters_table)
 
     console.print(tree)
