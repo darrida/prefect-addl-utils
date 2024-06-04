@@ -13,7 +13,7 @@ from pydantic.v1 import BaseModel
 from rich.console import Console
 from rich.status import Status
 
-from . import deployment_rich as rich_deploy
+from . import deployment_output as rich_deploy
 
 console = Console()
 
