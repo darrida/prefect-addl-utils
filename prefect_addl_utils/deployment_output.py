@@ -193,7 +193,7 @@ class Container(BaseModel):
 
 
 def show_deployment_results(name: str, new: DeploymentResponse, old: DeploymentResponse = None):
-    console.print(Rule(), style="white")
+    console.print(Rule(style="white"))
     tree = Tree(f":rocket: [bold bright_cyan]{name}")
 
     if new is None:
