@@ -10,6 +10,7 @@ from pydantic.v1 import BaseModel
 from rich.console import Console
 from rich.panel import Panel
 from rich.pretty import Pretty
+from rich.rule import Rule
 from rich.table import Table, box
 from rich.tree import Tree
 
@@ -192,6 +193,7 @@ class Container(BaseModel):
 
 
 def show_deployment_results(name: str, new: DeploymentResponse, old: DeploymentResponse = None):
+    console.print(Rule())
     tree = Tree(f":rocket: [bold bright_cyan]{name}")
 
     if new is None:
