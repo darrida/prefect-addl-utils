@@ -194,6 +194,9 @@ class Container(BaseModel):
 def show_deployment_results(name: str, new: DeploymentResponse, old: DeploymentResponse = None):
     tree = Tree(f":rocket: [bold bright_cyan]{name}")
 
+    if new is None:
+        return None
+
     entrypoint = Entrypoint.build(new, old or None)
     tree.add(f"[bold blue]entrypoint:[/bold blue] {entrypoint}")
 
@@ -209,6 +212,8 @@ def show_deployment_results(name: str, new: DeploymentResponse, old: DeploymentR
     tree.add(parameters_table)
 
     console.print(tree)
+
+    return True
 
 
 

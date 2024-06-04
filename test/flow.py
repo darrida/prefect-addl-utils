@@ -11,7 +11,7 @@ class Parameters(BaseModel):
     loop_sleep_ms: int = 600
 
 
-@flow(name="test-flow2")
+@flow(name="test-flow3")
 def main(test_mode: bool, username: str, host: str, loop_sleep_ms: int):
     logger = get_run_logger()
     logger.info("Flow ran successfully!")

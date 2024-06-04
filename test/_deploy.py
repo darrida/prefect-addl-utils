@@ -15,8 +15,20 @@ import prefect_addl_utils as utils
 
 WORK_POOL_NAME = "test-pool"
 
-deployment = utils.DeploymentConfig(
-    name="test-deployment",
+deployment1 = utils.DeploymentConfig(
+    name="test-deployment1",
+    version="1.0.0",
+    work_queue_name="default",
+    job_variables={},
+    schedules=[sch(schedule=CronSchedule(cron="0 2 1 * *", timezone="America/Chicago"), active=True)],
+    tags=["tag1", "tag2", "tag3"],
+    ####################################
+    parameters=Parameters().dict(),
+    description=open(Path(__file__).parent / "_description.md").read(),
+)
+
+deployment2 = utils.DeploymentConfig(
+    name="test-deployment2",
     version="1.0.0",
     work_queue_name="default",
     job_variables={},
@@ -40,7 +52,7 @@ if __name__ == "__main__":
             flow=main,
             source=git_storage,
             entrypoint=utils.build_entrypoint_str(__file__),
-            deployments=deployment,
+            deployments=[deployment1, deployment2],
             work_pool_name=WORK_POOL_NAME
         )
     )

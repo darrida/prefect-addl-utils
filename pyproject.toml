@@ -9,6 +9,7 @@ readme = "README.md"
 dependencies = [
     'prefect >= 2.18',
     'rich >= 11.0, < 14.0',
+    'gitpython >= 3.0',
     'python_version < 3.11',
 ]
 classifiers = [

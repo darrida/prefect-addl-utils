@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
 
+from git import Repo
 from prefect import Flow, deploy, get_client
 from prefect.client.schemas.objects import DeploymentSchedule, MinimalDeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
@@ -15,8 +17,10 @@ from rich.status import Status
 
 from . import deployment_output as rich_deploy
 
-console = Console()
+GIT_REPO_ROOT = os.environ.get("GIT_REPO_ROOT") or Path(__file__).parent.parent
 
+console = Console()
+repo = Repo(GIT_REPO_ROOT)
 
 def help_text():
     print("""
@@ -64,6 +68,10 @@ async def execute_deploy_process(
     if "--help" in cli_flags:
         help_text()
 
+    if repo.is_dirty():
+        console.print("\n[bold yellow]WARNING:[/bold yellow] Unstaged/uncommitted changed detected. When deploying against the deployment source branch uncommitted changes may be missing from actual deployment. Commit or remove changes and try again.\n")
+        exit()
+
     if not isinstance(deployments, list):
         deployments = [deployments]
     flow_ready = await flow.from_source(source=source, entrypoint=entrypoint)
@@ -83,10 +91,11 @@ async def execute_deploy_process(
 
     for deployment in deployments:
         name = f"{flow.name}/{deployment.name}"
-        print(name)
         with console.status("[bold green]Generating results..."):
             updated_deployment = await __read_deployment(name)
-        rich_deploy.show_deployment_results(name, updated_deployment, current_deployment)
+        success = rich_deploy.show_deployment_results(name, updated_deployment, current_deployment)
+        if success is None:
+            console.print(f"[yellow]***WARNING***:[/yellow] Updated deployment information is missing for [blue]{name}[/blue]. Often, this happens when attempting to deploy changes not yet committed in git.\n")
 
 
 async def __read_deployment(name: str) -> DeploymentResponse:
