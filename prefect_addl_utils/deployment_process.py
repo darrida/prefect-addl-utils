@@ -13,6 +13,7 @@ from prefect.exceptions import ObjectNotFound
 from prefect.runner.storage import GitRepository
 from pydantic.v1 import BaseModel
 from rich.console import Console
+from rich.rule import Rule
 from rich.status import Status
 
 from . import deployment_output as rich_deploy
@@ -89,6 +90,7 @@ async def execute_deploy_process(
 
     await deploy(*prepped_deployments_l, work_pool_name=work_pool_name, ignore_warnings=True)
 
+    console.print(Rule(title="Deployment Results", style="white"))
     for deployment in deployments:
         name = f"{flow.name}/{deployment.name}"
         with console.status("[bold green]Generating results..."):
