@@ -52,6 +52,5 @@ if __name__ == "__main__":
             entrypoint=addl.build_entrypoint_str(__file__),
             deployments=[deployment1, deployment2],
             work_pool_name=WORK_POOL_NAME,
-            cwd=Path.cwd()
         )
     )
