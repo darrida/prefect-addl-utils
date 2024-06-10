@@ -51,6 +51,7 @@ if __name__ == "__main__":
             source=git_storage,
             entrypoint=addl.build_entrypoint_str(__file__),
             deployments=[deployment1, deployment2],
-            work_pool_name=WORK_POOL_NAME
+            work_pool_name=WORK_POOL_NAME,
+            cwd=Path.cwd()
         )
     )
