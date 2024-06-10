@@ -25,7 +25,6 @@ class AddlGitRepo:
             )
 
     def read_pyproject_toml(pyproject_toml_path: str | Path, return_none: bool = False) -> dict:
-
         with open(pyproject_toml_path, 'rb') as f:
             config = tomllib.load(f)
         addl_config = config.get("tool").get("prefect-addl-utils")
@@ -41,11 +40,11 @@ class AddlGitRepo:
 
     def config_repo_root(return_none: bool = False):
         pyproject_toml_path: Path = AddlGitRepo.find_pyproject_toml(return_none)
-        print(f"Using `pyproject.toml` from {pyproject_toml_path}")
         addl_config = AddlGitRepo.read_pyproject_toml(pyproject_toml_path, return_none)
         if not addl_config and return_none is True:
             return
         else:
+            print(f"Using `pyproject.toml` from {pyproject_toml_path}")
             repo_root = addl_config.get("git-repo-root")
         if repo_root in (None, "."):
             repo_root = pyproject_toml_path.parent
@@ -79,7 +78,7 @@ class AddlGitRepo:
         for path in candidates:
             try:
                 repo = Repo(path)
-                print(f"Using git project from: {repo.common_dir}")
+                print(f"Using git project from: {Path(repo.common_dir).parent}")
                 return repo
             except InvalidGitRepositoryError:
                 pass
@@ -90,4 +89,5 @@ class AddlGitRepo:
 
 
 if __name__ == "__main__":
-    AddlGitRepo.get()
+    # AddlGitRepo.get()
+    print(__file__)

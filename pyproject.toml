@@ -46,6 +46,3 @@ known-third-party = []
 # relative-imports-order = "closest-to-furthest"
 required-imports = ["from __future__ import annotations"]
 
-# [tool.prefect-addl-utils]
-# git-repo-root = "."
-# git-repo-root = "/Users/zzzz"

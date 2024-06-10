@@ -44,8 +44,14 @@ To...
 
 
 def build_entrypoint_str(deploy__file__: str, *, flow_module: str = "flow.py", flow_func: str = "main") -> str:
-    # this__file__ = __file__
-    # repo_root_dir = Path(this__file__).parent.parent
+    """
+    Generates "entrypoint" using `_deploy.py` file location (i.e., intended to be used in a flow specific deployment file)
+    - Uses "__file__" to determine absolute flow.py module directory path
+    - Calculates a relative path to the flow.py module directory path using the Prefect project git root directory
+    - adds the "/{flow_module}:{flow_func}" values to the end of the relative path
+      - Example entrypoint result: `/project_root/dir1/flow.py:main`
+
+    """
     relative_from_repo_root = Path(deploy__file__).parent.relative_to(Path(repo.common_dir).parent) / flow_module
     return f"{relative_from_repo_root.as_posix()}:{flow_func}"
 
@@ -62,24 +68,37 @@ class DeploymentConfig(BaseModel):
 
 
 async def execute_deploy_process(
+    *,
     flow: Flow,
     source: GitRepository,
-    entrypoint: str,
+    entrypoint: str = None,
+    flow_path: str = None,
     deployments: list[DeploymentConfig] | DeploymentConfig,
     work_pool_name: str,
+
+    cwd: str | Path = Path.cwd()
 ):
     cli_flags = sys.argv[1:]
 
     if "--help" in cli_flags:
         help_text()
 
-    if repo.is_dirty():
-        print(repo.untracked_files)
-        print(repo.working_dir)
+    print(cwd)
+    if repo.is_dirty(path=cwd, untracked_files=True):
         console.print(
-            "\n[bold yellow]WARNING:[/bold yellow] Unstaged/uncommitted changed detected. When deploying against the deployment source branch uncommitted changes may be missing from actual deployment. Commit or remove changes and try again.\n"
+            "\n[bold yellow]WARNING:[/bold yellow] Unstaged/uncommitted/untracked changed detected in "
+            "the `_deploy.py` directory. When deploying against the deployment source branch uncommitted "
+            "changes may be missing from actual deployment. Commit or remove changes and try again.\n"
         )
         exit()
+
+    # Determine "entrypoint"
+    if flow_path and not entrypoint:
+        entrypoint = build_entrypoint_str(flow_path)
+    elif entrypoint and not flow_path:
+        pass
+    else:
+        raise ValueError("`exedute_deploy_process` requires `entrypoint` OR `flow_path, and will not accept both")
 
     if not isinstance(deployments, list):
         deployments = [deployments]
