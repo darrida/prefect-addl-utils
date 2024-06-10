@@ -67,7 +67,7 @@ class ScheduleRows(BaseModel):
         new_schedules = new.schedules
         old_schedules = None if old is None else old.schedules
 
-        ScheduleTuple = namedtuple('ScheduleTuple', 'active schedule')
+        ScheduleTuple = namedtuple("ScheduleTuple", "active schedule")
 
         old_schedules = [] if old_schedules is None else [ScheduleTuple(x.active, x.schedule) for x in old_schedules]
         new_schedules = [ScheduleTuple(x.active, x.schedule) for x in new_schedules]
@@ -83,10 +83,12 @@ class ScheduleRows(BaseModel):
                 removed_l.append(s)
             elif s not in unchanged_l:
                 unchanged_l.append(s)
-        
+
         schedules_l = []
         schedules_l += [ScheduleRows(active=x.active, schedule=x.schedule, mode="added").__resolve() for x in added_l]
-        schedules_l += [ScheduleRows(active=x.active, schedule=x.schedule, mode="removed").__resolve() for x in removed_l]
+        schedules_l += [
+            ScheduleRows(active=x.active, schedule=x.schedule, mode="removed").__resolve() for x in removed_l
+        ]
         schedules_l += [ScheduleRows(active=x.active, schedule=x.schedule, mode=None).__resolve() for x in unchanged_l]
         return schedules_l
 
@@ -112,9 +114,9 @@ class ParameterRows(BaseModel):
         new = OrderedDict(sorted(new.items()))
 
         added_l = ParameterRows.__get_added(new, old)
-        removed_l = ParameterRows.__get_removed(new, old)        
+        removed_l = ParameterRows.__get_removed(new, old)
         changed, common_l = ParameterRows.__get_common(new, old)
-        
+
         param_changed = ParameterRows.__determine_changed(added_l, removed_l, changed)
         parameters_l = added_l + removed_l + common_l
 
@@ -123,11 +125,11 @@ class ParameterRows(BaseModel):
     def __get_added(new: dict, old: dict = None) -> list:
         added_params = sorted(set(new.keys()).difference(old.keys()))
         return [[f"{x} :star:", f"[green]{new[x]}[/green]", None] for x in added_params]
-    
+
     def __get_removed(new: dict, old: dict = None) -> list:
         removed_params = sorted(set(old.keys()).difference(new.keys()))
         return [[f"{x} :star:", f"[red]{old[x]}[/red]"] for x in removed_params]
-    
+
     def __get_common(new: dict, old: dict = None) -> tuple[bool, list]:
         parameters_l = []
         param_changed = False
@@ -156,11 +158,11 @@ class ParameterRows(BaseModel):
                     old_value = None
             parameters_l.append([name, value, old_value])
         return param_changed, parameters_l
-    
+
     def __determine_changed(added: list, removed: list, common_changed: bool) -> bool:
         if added or removed or common_changed:
             return True
-        
+
     def __build_table(parameters: list, old_value_col: bool) -> Table:
         parameters_table = Table(
             show_header=True,
@@ -216,82 +218,3 @@ def show_deployment_results(name: str, new: DeploymentResponse, old: DeploymentR
     console.print(Rule(style="white"))
 
     return True
-
-
-
-
-
-# ##############################################################################
-# # DEPLOYMENTS
-# ##############################################################################
-# tree = Tree("[bold grey46]Deployments")
-
-# ##############################################################################
-# # DEPLOYMENT
-# ##############################################################################
-# subtree = tree.add(":rocket: [bold bright_cyan]flow/deployment1")
-
-# ##############################################################################
-# # ENTRYPOINT
-# ##############################################################################
-# old_entrypoint = "flows/deployment-name1/src/flow.py:main"
-# new_entrypoint = "flows/deployment-name1/src/flow.py:main"
-
-# entrypoint = Entrypoint.build(new_entrypoint, old_entrypoint)
-# subtree.add(f"[bold blue]entrypoint:[/bold blue] {entrypoint}")
-
-# ##############################################################################
-# # TAGS
-# ##############################################################################
-# old_tags = ["priority-low", "infra-maintenance", "test-deployment"]
-# new_tags = ["priority-low", "infra-maintenance", "prod-deployment"]
-
-# tags = TagsRow.build(new_tags, old_tags)
-# subtree.add(f"[bold blue]tags:[/bold blue] {" ".join(tags)}")
-
-# ##############################################################################
-# # SCHEDULES
-# ##############################################################################
-# schedules_new = [
-#     CronSchedule(cron='0 9,17,20 * * *', timezone='America/Chicago', day_or=True),
-#     CronSchedule(cron='0 9,18,20 * * *', timezone='America/Chicago', day_or=True),
-# ]
-# schedules_old = [
-#     CronSchedule(cron='0 9,17,20 * * *', timezone='America/Chicago', day_or=True),
-#     CronSchedule(cron='0 9,16,20 * * *', timezone='America/Chicago', day_or=True),
-#     IntervalSchedule(interval=600)
-# ]
-
-# schedules_l = ScheduleRows.build(schedules_new, schedules_old)
-# schedule_tree = subtree.add("[bold blue]schedules:")
-# for s in schedules_l:
-#     schedule_tree.add(s)
-
-# ##############################################################################
-# # PARAMETERS
-# ##############################################################################
-# old = {
-#     "dsn": "PPRD",
-#     "test_mod": True,
-#     "dict1": [
-#         {"key1": "stringsstringsstrings", "key2": "filename1.csv"},
-#         {"key1": "stringsstringsstrings", "key2": "filename1.csv"}
-#     ],
-#     "files": Container(name="one", target=10)
-# }
-# new = {
-#     "dsn": "PROD",
-#     "test_mod": True,
-#     "dict1": [
-#         {"key1": "stringsstringsstrings", "key2": "filename1.csv"},
-#         {"key1": "stringsstringsstrings", "key2": "filename1.csv"}
-#     ],
-#     "files": Container(name="one", target=10)
-# }
-# parameters_table = ParameterRows.build(new, old)
-# subtree.add(parameters_table)
-
-# ##############################################################################
-# # PRINT RESULTS
-# ##############################################################################
-# console.print(tree)
