@@ -19,12 +19,14 @@ from rich.rule import Rule
 from rich.status import Status
 
 from . import deployment_output as rich_deploy
+from .manage_config import AddlGitRepo
 
-GIT_REPO_ROOT = os.environ.get("GIT_REPO_ROOT") or Path(__file__).parent.parent
+if get_repo_envar := os.environ.get("GIT_REPO_ROOT"):
+    repo = Repo(get_repo_envar)
+else:
+    repo = AddlGitRepo.get()
 
 console = Console()
-repo = Repo(GIT_REPO_ROOT)
-
 
 def help_text():
     print("""
@@ -44,7 +46,7 @@ To...
 def build_entrypoint_str(deploy__file__: str, *, flow_module: str = "flow.py", flow_func: str = "main") -> str:
     # this__file__ = __file__
     # repo_root_dir = Path(this__file__).parent.parent
-    relative_from_repo_root = Path(deploy__file__).parent.relative_to(Path(GIT_REPO_ROOT)) / flow_module
+    relative_from_repo_root = Path(deploy__file__).parent.relative_to(Path(repo.common_dir).parent) / flow_module
     return f"{relative_from_repo_root.as_posix()}:{flow_func}"
 
 
@@ -72,6 +74,8 @@ async def execute_deploy_process(
         help_text()
 
     if repo.is_dirty():
+        print(repo.untracked_files)
+        print(repo.working_dir)
         console.print(
             "\n[bold yellow]WARNING:[/bold yellow] Unstaged/uncommitted changed detected. When deploying against the deployment source branch uncommitted changes may be missing from actual deployment. Commit or remove changes and try again.\n"
         )

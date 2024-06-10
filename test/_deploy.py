@@ -9,13 +9,11 @@ from prefect.client.schemas.schedules import CronSchedule
 from prefect.runner.storage import GitRepository
 from prefect.variables import Variable
 
-import prefect_addl_utils as utils
-
-# from prefect_addl_utils import DeploymentConfig, build_entrypoint_str, deploy_process
+import prefect_addl_utils as addl
 
 WORK_POOL_NAME = "test-pool"
 
-deployment1 = utils.DeploymentConfig(
+deployment1 = addl.DeploymentConfig(
     name="test-deployment1",
     version="1.0.0",
     work_queue_name="default",
@@ -27,7 +25,7 @@ deployment1 = utils.DeploymentConfig(
     description=open(Path(__file__).parent / "_description.md").read(),
 )
 
-deployment2 = utils.DeploymentConfig(
+deployment2 = addl.DeploymentConfig(
     name="test-deployment2",
     version="1.0.0",
     work_queue_name="default",
@@ -48,10 +46,10 @@ git_storage = GitRepository(
 
 if __name__ == "__main__":
     asyncio.run(
-        utils.execute_deploy_process(
+        addl.execute_deploy_process(
             flow=main,
             source=git_storage,
-            entrypoint=utils.build_entrypoint_str(__file__),
+            entrypoint=addl.build_entrypoint_str(__file__),
             deployments=[deployment1, deployment2],
             work_pool_name=WORK_POOL_NAME
         )
