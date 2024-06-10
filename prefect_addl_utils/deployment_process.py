@@ -20,7 +20,7 @@ from rich.status import Status
 
 from . import deployment_output as rich_deploy
 
-GIT_REPO_ROOT = os.environ.get("GIT_REPO_ROOT") or Path(__file__).parent.parent.parent
+GIT_REPO_ROOT = os.environ.get("GIT_REPO_ROOT") or Path(__file__).parent.parent
 
 console = Console()
 repo = Repo(GIT_REPO_ROOT)
