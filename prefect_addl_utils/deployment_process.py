@@ -7,12 +7,10 @@ from pathlib import Path
 
 from git import Repo
 from prefect import Flow, deploy, get_client
-from prefect.blocks.system import Secret
 from prefect.client.schemas.objects import DeploymentSchedule, MinimalDeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.exceptions import ObjectNotFound
 from prefect.runner.storage import GitRepository
-from prefect.variables import Variable
 from pydantic.v1 import BaseModel
 from rich.console import Console
 from rich.rule import Rule

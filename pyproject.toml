@@ -10,7 +10,9 @@ dependencies = [
     'prefect >= 2.18',
     'rich >= 11.0, < 14.0',
     'gitpython >= 3.0',
-    'python_version < 3.11',
+    # 'python_version < 3.11',
+    'cron_descriptor >= 1.4.0',
+    'rich-cli >= 1.8.0'
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
